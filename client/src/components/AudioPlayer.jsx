@@ -13,6 +13,7 @@
  */
 import { useRef, useEffect, useState } from "react";
 import { fmtTime } from "../lib/format";
+import { BACKEND_URL } from "../lib/api";
 
 /**
  * Parse a media-fragment URL into { baseSrc, startSec, endSec }.
@@ -71,7 +72,7 @@ export default function AudioPlayer({ task, onClose }) {
 
   const hasAudio = Boolean(baseSrc);
   // Use the full fragment URL as src so the browser also uses it as a hint
-  const audioSrc = baseSrc;
+  const audioSrc = baseSrc && baseSrc.startsWith("/") ? `${BACKEND_URL}${baseSrc}` : baseSrc;
 
   return (
     <div

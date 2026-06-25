@@ -8,7 +8,11 @@
  *           Vite proxies /uploads → http://localhost:8000 (audio proofs)
  */
 
-const BASE = "/api";
+export const BACKEND_URL = import.meta.env.VITE_API_BASE_URL
+  ? import.meta.env.VITE_API_BASE_URL.replace(/\/api$/, "")
+  : "";
+
+const BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
 // ─── Low-level fetch wrapper ──────────────────────────────────────────────────
 function authHeaders(token) {
