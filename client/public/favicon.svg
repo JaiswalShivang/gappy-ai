@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" width="32" height="32">
+  <title>Minutes</title>
+
+  <!-- Dark background for favicon context -->
+  <rect width="32" height="32" rx="4" fill="#0A0A0A"/>
+
+  <!-- Crown button — two short horizontal lines -->
+  <line x1="12.5" y1="3"   x2="19.5" y2="3"   stroke="#888888" stroke-width="2"   stroke-linecap="round"/>
+  <line x1="13.5" y1="5.2" x2="18.5" y2="5.2" stroke="#888888" stroke-width="2"   stroke-linecap="round"/>
+
+  <!-- Stem connecting crown to circle -->
+  <line x1="16" y1="5.2" x2="16" y2="7.8" stroke="#888888" stroke-width="1.8" stroke-linecap="round"/>
+
+  <!-- Main stopwatch circle — slightly thicker for favicon legibility -->
+  <circle cx="16" cy="19" r="11.2" stroke="#39FF88" stroke-width="2.4" fill="none"/>
+
+  <!-- Checkmark — bold, clear at small sizes -->
+  <path
+    d="M 10.5 19 L 14.2 22.8 L 22.5 13.5"
+    stroke="#39FF88"
+    stroke-width="3"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    fill="none"
+  />
+</svg>
