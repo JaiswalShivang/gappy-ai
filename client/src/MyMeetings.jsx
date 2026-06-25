@@ -14,6 +14,7 @@ import { TASK_COLUMNS, TASK_STATUS, MEETING_STATUS, PRIORITY } from "./lib/const
 import { LogoMarkProcessing } from "./LogoMark";
 import Toast from "./components/Toast";
 import AudioPlayer from "./components/AudioPlayer";
+import { useLocation } from "react-router-dom";
 
 // ─── Avatar (square monogram) ─────────────────────────────────────────────────
 function Avatar({ name, size = 28 }) {
@@ -600,6 +601,7 @@ function PeopleView({ tasks }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function MyMeetings() {
   const { token } = useAuth();
+  const location  = useLocation();
 
   const [meetings, setMeetings]               = useState([]);
   const [tasks, setTasks]                     = useState([]);
@@ -623,7 +625,17 @@ export default function MyMeetings() {
     let cancelled = false;
     setLoadingMeetings(true);
     meetingsApi.list(token)
-      .then(data => { if (!cancelled) setMeetings(Array.isArray(data) ? data : []); })
+      .then(data => {
+        if (!cancelled) {
+          const list = Array.isArray(data) ? data : [];
+          setMeetings(list);
+          // Auto-select if we arrived from DashboardHome with a meetingId
+          const fromState = location.state?.meetingId;
+          if (fromState && list.some(m => m._id === fromState)) {
+            setActiveMeetingId(fromState);
+          }
+        }
+      })
       .catch(err => { if (!cancelled) notify(err.message, "error"); })
       .finally(() => { if (!cancelled) setLoadingMeetings(false); });
     return () => { cancelled = true; };

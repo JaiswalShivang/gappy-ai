@@ -277,7 +277,7 @@ export default function DashboardHome() {
                 key={m._id}
                 meeting={m}
                 idx={i}
-                onClick={() => navigate("/dashboard/meetings")}
+                onClick={() => navigate("/dashboard/meetings", { state: { meetingId: m._id } })}
               />
             ))}
           </div>

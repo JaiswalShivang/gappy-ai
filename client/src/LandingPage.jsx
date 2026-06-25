@@ -279,7 +279,7 @@ export default function LandingPage() {
             <div className="flex items-center gap-4 mt-8">
               <button
                 id="hero-get-started"
-                onClick={() => navigate("/app")}
+                onClick={() => navigate("/sign-up")}
                 className="px-6 py-3 bg-[#39FF88] text-black text-sm font-mono font-bold rounded-sm hover:opacity-90 transition-opacity"
               >
                 $ start --free
@@ -395,7 +395,7 @@ export default function LandingPage() {
           <div className="flex items-center justify-center gap-4">
             <button
               id="cta-get-started"
-              onClick={() => navigate("/app")}
+              onClick={() => navigate("/sign-up")}
               className="px-8 py-3 bg-[#39FF88] text-black text-sm font-mono font-bold rounded-sm hover:opacity-90 transition-opacity"
             >
               $ start --free
