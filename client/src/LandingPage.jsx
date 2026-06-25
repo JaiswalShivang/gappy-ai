@@ -176,7 +176,12 @@ export default function LandingPage() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const navLinks = ["Product", "Docs", "Changelog", "Pricing"];
+  const navLinks = [
+    { label: "Features",  href: "#features"  },
+    { label: "How it Works", href: "#how-it-works" },
+    { label: "Stats",     href: "#stats"     },
+    { label: "GitHub",    href: "https://github.com/JaiswalShivang/gappy-ai", external: true },
+  ];
 
   const mockSearchBar = (
     <div className="border border-[#262626] rounded-sm px-3 py-2.5 bg-[#0A0A0A] font-mono text-xs flex items-center gap-2">
@@ -209,25 +214,27 @@ export default function LandingPage() {
 
       {/* ── NAV ─────────────────────────────────────────────────────────────── */}
       <nav
-        className={`fixed top-0 left-0 right-0 z-50 border-b border-[#262626] transition-colors duration-150 ${
-          navSolid ? "bg-[#0A0A0A]" : "bg-[#0A0A0A]"
+        className={`fixed top-0 left-0 right-0 z-50 border-b transition-colors duration-300 ${
+          navSolid ? "bg-[#0A0A0A] border-[#262626]" : "bg-transparent border-transparent"
         }`}
       >
         <div className="max-w-[1200px] mx-auto px-6 h-14 flex items-center gap-8">
           {/* Logo */}
           <span className="text-sm font-mono font-bold text-[#F5F5F5] tracking-tight shrink-0">
-            [&nbsp;<span className="text-[#39FF88]">MEETLY</span>&nbsp;]
+            [&nbsp;<span className="text-[#39FF88]">GAPPY</span>&nbsp;AI]
           </span>
 
           {/* Nav links — center-left */}
           <div className="flex items-center gap-6">
-            {navLinks.map((link) => (
+            {navLinks.map(({ label, href, external }) => (
               <a
-                key={link}
-                href="#"
+                key={label}
+                href={href}
+                target={external ? "_blank" : undefined}
+                rel={external ? "noopener noreferrer" : undefined}
                 className="text-xs font-mono uppercase tracking-widest text-[#888888] hover:text-[#39FF88] transition-colors duration-150"
               >
-                {link}
+                {label}
               </a>
             ))}
           </div>
@@ -306,7 +313,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── BENTO FEATURES ──────────────────────────────────────────────────── */}
-      <section className="relative z-10 max-w-[1200px] mx-auto px-6 pb-24">
+      <section id="features" className="relative z-10 max-w-[1200px] mx-auto px-6 pb-24">
         {/* Section label */}
         <p className="text-sm font-mono text-[#39FF88] mb-6">// core features</p>
 
@@ -353,7 +360,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── STAT SECTION ────────────────────────────────────────────────────── */}
-      <section className="relative z-10 max-w-[1200px] mx-auto px-6 pb-28">
+      <section id="stats" className="relative z-10 max-w-[1200px] mx-auto px-6 pb-28">
         <div className="border border-[#262626] bg-[#111111] rounded-md p-10 grid md:grid-cols-[auto_1fr] gap-8 items-center">
           <div>
             <p className="text-7xl font-bold font-mono text-[#39FF88] leading-none">10h</p>
@@ -362,7 +369,7 @@ export default function LandingPage() {
           <div className="border-l border-[#262626] pl-8">
             <p className="text-[10px] font-mono text-[#39FF88] mb-2">// average hours saved</p>
             <p className="text-sm font-mono text-[#888888] leading-relaxed max-w-sm">
-              Teams using Meetly recover a full workday every week by eliminating manual note-taking, follow-up emails, and status meetings.
+              Teams using Gappy AI recover a full workday every week by eliminating manual note-taking, follow-up emails, and status meetings.
             </p>
             <div className="flex gap-8 mt-6">
               {[
@@ -415,7 +422,7 @@ export default function LandingPage() {
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div>
             <span className="text-sm font-mono font-bold text-[#F5F5F5]">
-              [&nbsp;<span className="text-[#39FF88]">MEETLY</span>&nbsp;]
+              [&nbsp;<span className="text-[#39FF88]">GAPPY</span>&nbsp;AI]
             </span>
             <p className="text-[10px] font-mono text-[#333333] mt-1">
               // meeting-to-execution intelligence
@@ -433,7 +440,7 @@ export default function LandingPage() {
             ))}
           </div>
           <p className="text-[10px] font-mono text-[#333333]">
-            © 2026 Meetly. Built with Groq + Whisper.
+            © 2026 Gappy AI. Built with Groq + Whisper.
           </p>
         </div>
       </footer>
