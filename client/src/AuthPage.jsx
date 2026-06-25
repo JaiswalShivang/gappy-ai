@@ -79,7 +79,7 @@ function LeftPanel() {
       {/* Bottom-left logo */}
       <div className="absolute bottom-6 left-6 z-10">
         <span className="text-sm font-mono font-bold text-[#F5F5F5]">
-          [&nbsp;<span className="text-[#39FF88]">MEETLY</span>&nbsp;]
+          [&nbsp;<span className="text-[#39FF88]">GAPPY</span>&nbsp;AI]
         </span>
         <p className="text-[9px] font-mono text-[#555555] mt-0.5">// meeting-to-execution</p>
       </div>
@@ -139,7 +139,7 @@ function SignInForm() {
     try {
       const { token, user } = await apiAuth("login", { email: email.trim(), password });
       login(token, user);
-      navigate("/app");
+      navigate("/dashboard");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -210,7 +210,7 @@ function SignUpForm() {
         name: name.trim(),
       });
       login(token, user);
-      navigate("/app");
+      navigate("/dashboard");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -286,7 +286,7 @@ function RightPanel({ mode }) {
         {/* Mobile logo */}
         <div className="lg:hidden mb-8">
           <Link to="/" className="text-sm font-mono font-bold text-[#F5F5F5] hover:text-[#39FF88] transition-colors">
-            [&nbsp;<span className="text-[#39FF88]">MEETLY</span>&nbsp;]
+            [&nbsp;<span className="text-[#39FF88]">GAPPY</span>&nbsp;AI]
           </Link>
         </div>
 
@@ -342,7 +342,7 @@ export default function AuthPage({ mode = "sign-in" }) {
 
   // Redirect already-logged-in users straight to app
   useEffect(() => {
-    if (isAuthed) navigate("/app", { replace: true });
+    if (isAuthed) navigate("/dashboard", { replace: true });
   }, [isAuthed, navigate]);
 
   return (
