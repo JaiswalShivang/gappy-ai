@@ -635,6 +635,15 @@ export default function LandingPage() {
         <h2 className="text-3xl font-bold font-mono text-[#F5F5F5] mb-2">Simple, transparent pricing.</h2>
         <p className="text-sm font-mono text-[#888888] mb-10">// start free. upgrade when you're ready.</p>
 
+        {/* Free beta banner */}
+        <div className="flex items-start gap-3 bg-[#39FF88]/5 border border-[#39FF88]/30 rounded-sm px-5 py-3.5 mb-8">
+          <span className="w-2 h-2 rounded-sm bg-[#39FF88] animate-pulse shrink-0 mt-0.5" />
+          <p className="text-xs font-mono text-[#888888] leading-relaxed">
+            <span className="text-[#39FF88] font-bold">// beta · everything is currently free — </span>
+            no credit card, no limits. pricing kicks in post-launch.
+          </p>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {PLANS.map((plan) => (
             <PricingCard
