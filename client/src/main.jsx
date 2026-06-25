@@ -9,6 +9,7 @@ import Dashboard from './Dashboard.jsx'
 import DashboardHome from './DashboardHome.jsx'
 import MyMeetings from './MyMeetings.jsx'
 import { LiveStreamPage, SettingsPage } from './DashboardPages.jsx'
+import CustomCursor from './components/CustomCursor.jsx'
 
 // ── Guards ────────────────────────────────────────────────────────────────────
 function PrivateRoute({ children }) {
@@ -53,6 +54,7 @@ function AppRoutes() {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
+      <CustomCursor />
       <AuthProvider>
         <AppRoutes />
       </AuthProvider>

@@ -23,6 +23,12 @@
     font-family: 'JetBrains Mono', 'IBM Plex Mono', 'Geist Mono', monospace;
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
+    cursor: none;
+  }
+
+  /* Hide native cursor on all interactive elements too */
+  a, button, input, textarea, select, label, [role="button"] {
+    cursor: none !important;
   }
 }
 
