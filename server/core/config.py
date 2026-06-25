@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     # Server
     port: int = Field(default=8000)
     host: str = Field(default="0.0.0.0")
+    cors_origins: str = Field(
+        default="http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174"
+    )
 
     # TODO (2026-06-24): Add Lemma SDK key here
     # lemma_api_key: str = Field(default="")
