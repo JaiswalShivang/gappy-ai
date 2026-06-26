@@ -52,7 +52,7 @@ async def lifespan(app: FastAPI):
 
 # ── App factory ───────────────────────────────────────────────────────────────
 app = FastAPI(
-    title="Gappy AI — Meeting Summarizer API",
+    title="Minutes — Meeting Summarizer API",
     version="1.0.0",
     description="Async API: upload audio → AI extraction → Audio Proof clips → MongoDB",
     lifespan=lifespan,

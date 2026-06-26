@@ -427,7 +427,7 @@ export default function LandingPage() {
         <div className="max-w-[1200px] mx-auto px-6 h-14 flex items-center gap-8">
           {/* Logo */}
           <Link to="/" className="text-sm font-mono font-bold text-[#F5F5F5] tracking-tight shrink-0 hover:text-[#39FF88] transition-colors">
-            [&nbsp;<span className="text-[#39FF88]">GAPPY</span>&nbsp;AI]
+            [&nbsp;<span className="text-[#39FF88]">MINUTES</span>&nbsp;]
           </Link>
 
           {/* Nav links */}
@@ -598,7 +598,7 @@ export default function LandingPage() {
           <div className="border-l border-[#262626] pl-8">
             <p className="text-[10px] font-mono text-[#39FF88] mb-2">// average hours saved</p>
             <p className="text-sm font-mono text-[#888888] leading-relaxed max-w-sm">
-              Teams using Gappy AI recover a full workday every week by eliminating manual note-taking, follow-up emails, and status meetings.
+              Teams using Minutes recover a full workday every week by eliminating manual note-taking, follow-up emails, and status meetings.
             </p>
             <div className="flex flex-wrap gap-8 mt-6">
               {[
@@ -694,7 +694,7 @@ export default function LandingPage() {
             {/* Brand */}
             <div>
               <span className="text-sm font-mono font-bold text-[#F5F5F5]">
-                [&nbsp;<span className="text-[#39FF88]">GAPPY</span>&nbsp;AI]
+                [&nbsp;<span className="text-[#39FF88]">MINUTES</span>&nbsp;]
               </span>
               <p className="text-[10px] font-mono text-[#333333] mt-1">// meeting-to-execution intelligence</p>
               <p className="text-[10px] font-mono text-[#2A2A2A] mt-4 leading-relaxed max-w-[220px]">
@@ -734,7 +734,7 @@ export default function LandingPage() {
           </div>
 
           <div className="pt-6 border-t border-[#1A1A1A] flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
-            <p className="text-[10px] font-mono text-[#2A2A2A]">© 2026 Gappy AI. All rights reserved.</p>
+            <p className="text-[10px] font-mono text-[#2A2A2A]">© 2026 Minutes. All rights reserved.</p>
             <div className="flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-sm bg-[#39FF88] animate-pulse" />
               <span className="text-[9px] font-mono text-[#333333]">// all systems nominal</span>

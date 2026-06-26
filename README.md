@@ -1,6 +1,6 @@
-# 🎙️ Gappy AI — AI-Powered Meeting Summarizer & Task Manager
+# 🎙️ Minutes — AI-Powered Meeting Summarizer & Task Manager
 
-Gappy AI is a modern, production-grade application that simplifies post-meeting workflows. By uploading meeting audio or raw transcripts, the system automatically transcribes the discussion, extracts actionable tasks, slices corresponding audio proof clips, and enables semantic search over task items.
+Minutes is a modern, production-grade application that simplifies post-meeting workflows. By uploading meeting audio or raw transcripts, the system automatically transcribes the discussion, extracts actionable tasks, slices corresponding audio proof clips, and enables semantic search over task items.
 
 ---
 

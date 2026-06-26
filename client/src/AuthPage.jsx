@@ -79,7 +79,7 @@ function LeftPanel() {
       {/* Bottom-left logo */}
       <div className="absolute bottom-6 left-6 z-10">
         <span className="text-sm font-mono font-bold text-[#F5F5F5]">
-          [&nbsp;<span className="text-[#39FF88]">GAPPY</span>&nbsp;AI]
+          [&nbsp;<span className="text-[#39FF88]">MINUTES</span>&nbsp;]
         </span>
         <p className="text-[9px] font-mono text-[#555555] mt-0.5">// meeting-to-execution</p>
       </div>
@@ -286,7 +286,7 @@ function RightPanel({ mode }) {
         {/* Mobile logo */}
         <div className="lg:hidden mb-8">
           <Link to="/" className="text-sm font-mono font-bold text-[#F5F5F5] hover:text-[#39FF88] transition-colors">
-            [&nbsp;<span className="text-[#39FF88]">GAPPY</span>&nbsp;AI]
+            [&nbsp;<span className="text-[#39FF88]">MINUTES</span>&nbsp;]
           </Link>
         </div>
 

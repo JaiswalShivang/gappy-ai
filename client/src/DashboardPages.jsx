@@ -144,7 +144,7 @@ export function SettingsPage() {
             </div>
           ))}
         </div>
-        <p className="text-[9px] font-mono text-[#2A2A2A] mt-4">// gappy-ai · hackathon build · 2026</p>
+        <p className="text-[9px] font-mono text-[#2A2A2A] mt-4">// minutes · hackathon build · 2026</p>
       </div>
     </div>
   );
