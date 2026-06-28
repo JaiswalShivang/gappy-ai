@@ -1,0 +1,122 @@
+# workflows/process_transcript.workflow.yaml
+# ============================================
+# Replaces: POST /api/meetings/process  (api/routes/meetings.py)
+#
+# Text-only pipeline — no audio file required.
+# Accepts raw transcript text (with or without [HH:MM:SS] brackets),
+# extracts meeting data via LLM, persists meeting + tasks, then fires
+# async embedding job.
+
+workflow:
+  name: process_transcript
+  description: >
+    Accept raw transcript text, extract meeting data via the meeting_analyst
+    agent, persist meeting + tasks to Tables, then trigger async embedding.
+    Returns to the client immediately — before embeddings are generated.
+
+  trigger:
+    type: api
+    method: POST
+    path: /meetings/process
+    auth: lemma_rbac       # Decision 1: Lemma native auth
+
+  input:
+    transcript:
+      type: string
+      required: true
+      min_length: 1
+      description: Raw transcript text (timestamped or plain).
+    title:
+      type: string
+      required: false
+      default: "Untitled Meeting"
+
+  steps:
+    # ── Guard: ensure transcript is not empty ─────────────────────────────────
+    - id: validate
+      type: guard
+      conditions:
+        - "inputs.transcript.strip().length > 0"
+      on_fail:
+        error: "transcript is required and must not be empty"
+        http_status: 422
+
+    # ── Extract meeting data via LLM ──────────────────────────────────────────
+    - id: extract_meeting_data
+      type: agent_call
+      agent: meeting_analyst
+      input:
+        meeting_title: "{{ inputs.title }}"
+        transcript: "{{ inputs.transcript }}"
+      output: ai_data
+      on_error:
+        type: function_call
+        function: mock_extract_tasks
+        args:
+          transcript: "{{ inputs.transcript }}"
+          title: "{{ inputs.title }}"
+
+    # ── Create meeting record ─────────────────────────────────────────────────
+    - id: create_meeting
+      type: table_write
+      table: meetings
+      data:
+        owner_id: "{{ lemma.current_user.id }}"
+        title: "{{ inputs.title or 'Untitled Meeting' }}"
+        summary: "{{ steps.extract_meeting_data.ai_data.summary }}"
+        participants: "{{ steps.extract_meeting_data.ai_data.participants }}"
+        key_points: "{{ steps.extract_meeting_data.ai_data.key_points }}"
+        duration_seconds: "{{ steps.extract_meeting_data.ai_data.duration }}"
+        status: "Embedding"
+        audio_file_uri: null   # Text-only meeting — no source audio
+        action_item_ids: []
+      output: meeting
+
+    # ── Insert tasks in parallel ──────────────────────────────────────────────
+    - id: process_tasks
+      type: parallel_for
+      over: "{{ steps.extract_meeting_data.ai_data.tasks }}"
+      as: raw_task
+      index: idx
+      steps:
+        - id: create_task
+          type: table_write
+          table: tasks
+          data:
+            owner_id: "{{ lemma.current_user.id }}"
+            meeting_id: "{{ steps.create_meeting.meeting.id }}"
+            title: "{{ raw_task.title }}"
+            description: "{{ raw_task.description }}"
+            assignee: "{{ raw_task.assignee }}"
+            priority: "{{ raw_task.priority }}"
+            status: "To Do"
+            source_quote: "{{ raw_task.sourceQuote }}"
+            start_time_seconds: "{{ raw_task.startTime }}"
+            end_time_seconds: "{{ raw_task.endTime }}"
+            audio_clip_uri: null   # No audio uploaded
+            embedding: null        # Decision 4: filled by background workflow
+            embedding_status: "pending"
+          output: saved_task
+
+    # ── Update meeting with task ID list ──────────────────────────────────────
+    - id: update_meeting_task_ids
+      type: table_update
+      table: meetings
+      id: "{{ steps.create_meeting.meeting.id }}"
+      data:
+        action_item_ids: "{{ steps.process_tasks | map('saved_task.id') }}"
+
+    # ── Fire-and-forget async embedding (Decision 4) ──────────────────────────
+    - id: trigger_embedding
+      type: workflow_trigger
+      workflow: embed_tasks_background
+      mode: async
+      args:
+        task_ids: "{{ steps.process_tasks | map('saved_task.id') }}"
+        meeting_id: "{{ steps.create_meeting.meeting.id }}"
+
+  output:
+    meeting: "{{ steps.create_meeting.meeting }}"
+    tasks: "{{ steps.process_tasks | map('saved_task') | strip_field('embedding') }}"
+    embedding_status: "pending"
+    message: "Meeting saved. Semantic search will be available shortly."

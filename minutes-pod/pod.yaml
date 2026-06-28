@@ -1,0 +1,45 @@
+pod:
+  name: minutes-ai
+  version: "2.0.0"
+  description: >
+    AI-powered meeting summarizer and task manager.
+    Transcribes meeting audio via Groq Whisper, extracts structured action
+    items via LLM, cuts audio proof clips via FFmpeg, and enables semantic
+    vector search over tasks via MongoDB Atlas $vectorSearch.
+
+  runtime: python3.11
+
+  env:
+    - name: GROQ_API_KEY
+      description: Groq Cloud API key for Whisper transcription and LLM calls
+      required: true
+    - name: MONGO_URI
+      description: MongoDB Atlas connection string (for external $vectorSearch)
+      required: true
+    - name: MONGO_DB_NAME
+      description: MongoDB database name
+      default: "meeting_summarizer"
+
+  roles:
+    - name: member
+      description: Standard authenticated user. Can create and manage their own meetings and tasks.
+      inherits: []
+    - name: admin
+      description: Full access including deletion.
+      inherits: [member]
+
+  file_store:
+    paths:
+      - pod://files/audio/           # Uploaded source audio files
+      - pod://files/audio_proofs/    # FFmpeg-cut task audio proof clips
+    max_file_size_mb: 100
+
+  on_start:
+    - type: function_call
+      function: generate_embedding
+      args:
+        text: "warmup"
+      description: >
+        Pre-warms the all-MiniLM-L6-v2 SentenceTransformer model so the
+        first embed_tasks_background call is fast. Mirrors the FastAPI
+        lifespan startup hook in the original main.py.

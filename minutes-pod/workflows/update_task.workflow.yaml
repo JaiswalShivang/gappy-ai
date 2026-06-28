@@ -1,0 +1,73 @@
+# workflows/update_task.workflow.yaml
+# =====================================
+# Replaces: PATCH /api/tasks/:id  (api/routes/tasks.py update_task)
+#
+# Partially updates a task's mutable fields.
+# Immutable fields (embedding, timestamps, sourceQuote, etc.) are never touched.
+# embedding field is stripped from the response.
+
+workflow:
+  name: update_task
+  description: >
+    Partially update a task's mutable fields: status, priority, assignee,
+    description, or title. Ownership is enforced via RBAC row_filter.
+    Returns 404 if not found, 422 if no valid fields are provided.
+
+  trigger:
+    type: api
+    method: PATCH
+    path: /tasks/:task_id
+    auth: lemma_rbac
+
+  input:
+    task_id:
+      type: uuid
+      required: true
+    status:
+      type: enum
+      values: ["To Do", "In Progress", "Done", "Blocked"]
+      required: false
+    priority:
+      type: enum
+      values: ["High", "Medium", "Low"]
+      required: false
+    assignee:
+      type: string
+      required: false
+    description:
+      type: string
+      required: false
+    title:
+      type: string
+      required: false
+
+  steps:
+    # ── Guard: at least one updatable field must be present ──────────────────
+    - id: validate_fields
+      type: guard
+      conditions:
+        - "at_least_one_present(inputs.status, inputs.priority, inputs.assignee, inputs.description, inputs.title)"
+      on_fail:
+        error: "No valid fields to update. Provide at least one of: status, priority, assignee, description, title."
+        http_status: 422
+
+    # ── Update the task ───────────────────────────────────────────────────────
+    - id: update
+      type: table_update
+      table: tasks
+      query:
+        id: "{{ inputs.task_id }}"
+        owner_id: "{{ lemma.current_user.id }}"   # Decision 1: RBAC ownership
+      data:
+        # Only fields provided in the input will be written (undefined = skip)
+        status: "{{ inputs.status }}"
+        priority: "{{ inputs.priority }}"
+        assignee: "{{ inputs.assignee }}"
+        description: "{{ inputs.description }}"
+        title: "{{ inputs.title }}"
+      output: updated_task
+      on_not_found:
+        error: "Task not found"
+        http_status: 404
+
+  output: "{{ steps.update.updated_task | strip_field('embedding') }}"

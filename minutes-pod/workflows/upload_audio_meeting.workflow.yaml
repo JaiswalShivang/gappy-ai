@@ -1,0 +1,189 @@
+# workflows/upload_audio_meeting.workflow.yaml
+# =============================================
+# Replaces: POST /api/meetings/upload  (api/routes/meetings.py)
+#
+# Full pipeline:
+#   receive audio file
+#   → save to Pod file store (Decision 3)
+#   → transcribe via Groq Whisper
+#   → extract meeting data via meeting_analyst agent
+#   → clamp timestamps to audio duration
+#   → HUMAN APPROVAL GATE (review extracted tasks)
+#   → create meeting record in Table
+#   → process tasks in parallel (cut audio clips + insert task rows)
+#   → update meeting with task IDs
+#   → fire-and-forget: trigger embed_tasks_background (Decision 4)
+#   → return response BEFORE embeddings complete
+
+workflow:
+  name: upload_audio_meeting
+  description: >
+    Full audio meeting pipeline. Accepts an audio file upload, transcribes it,
+    extracts structured meeting data via LLM, cuts audio proof clips, persists
+    everything to Tables, then fires an async embedding job.
+    Returns to the client immediately — before embeddings are generated.
+
+  trigger:
+    type: api
+    method: POST
+    path: /meetings/upload
+    auth: lemma_rbac       # Decision 1: Lemma native auth — no custom JWT
+
+  input:
+    audio:
+      type: file
+      required: true
+      mime_types: ["audio/*"]
+      description: Meeting audio file (mp3, mp4, wav, webm, m4a, ogg supported)
+    title:
+      type: string
+      required: false
+      default: "Untitled Meeting"
+      description: Optional meeting title provided by the user.
+
+  steps:
+    # ── Step 1: Save audio to Pod file store ──────────────────────────────────
+    - id: save_audio
+      type: file_store_write
+      # Decision 3: Lemma native file store; replaces local filesystem writes.
+      file: "{{ inputs.audio }}"
+      destination: "pod://files/audio/{{ uuid() }}{{ inputs.audio.extension }}"
+      output: audio_file_uri
+      # audio_file_uri: e.g. pod://files/audio/abc123-def456.mp3
+
+    # ── Step 2: Transcribe audio via Groq Whisper ────────────────────────────
+    - id: transcribe
+      type: function_call
+      function: transcribe_audio
+      args:
+        audio_file_uri: "{{ steps.save_audio.audio_file_uri }}"
+      output: transcription
+      # transcription: { text, duration_seconds, has_timestamps }
+
+    # ── Step 3: Extract meeting data via LLM ─────────────────────────────────
+    - id: extract_meeting_data
+      type: agent_call
+      agent: meeting_analyst
+      input:
+        meeting_title: "{{ inputs.title }}"
+        transcript: "{{ steps.transcribe.transcription.text }}"
+      output: ai_data
+      on_error:
+        type: function_call
+        function: mock_extract_tasks
+        args:
+          transcript: "{{ steps.transcribe.transcription.text }}"
+          title: "{{ inputs.title }}"
+      # ai_data: { summary, participants, key_points, duration, tasks[] }
+
+    # ── Step 4: Clamp timestamps to actual audio duration ────────────────────
+    - id: clamp_timestamps
+      type: function_call
+      function: clamp_task_timestamps
+      args:
+        tasks: "{{ steps.extract_meeting_data.ai_data.tasks }}"
+        audio_duration_seconds: "{{ steps.transcribe.transcription.duration_seconds }}"
+      output: clamped_tasks
+      condition: "steps.transcribe.transcription.duration_seconds > 0"
+      # Skip clamping if duration is unknown (transcript-only or Whisper failed)
+      default_when_skipped: "{{ steps.extract_meeting_data.ai_data.tasks }}"
+
+    # ── HUMAN APPROVAL GATE 1 ──────────────────────────────────────────────────
+    # Justification: AI may misattribute assignees or fabricate tasks.
+    # Corrections are expensive after meeting + tasks are written to the database.
+    # Auto-approves after 5 minutes to not block automated pipelines.
+    - id: human_review_tasks
+      type: human_approval
+      label: "Review extracted tasks before saving"
+      description: >
+        The AI extracted {{ steps.clamped_tasks | length }} task(s) from
+        "{{ inputs.title }}". Please review assignees and priorities before
+        they are saved to the database.
+      payload:
+        meeting_title: "{{ inputs.title }}"
+        summary: "{{ steps.extract_meeting_data.ai_data.summary }}"
+        participants: "{{ steps.extract_meeting_data.ai_data.participants }}"
+        tasks: "{{ steps.clamped_tasks }}"
+      timeout_action: auto_approve
+      timeout_minutes: 5
+
+    # ── Step 5: Create meeting record ─────────────────────────────────────────
+    - id: create_meeting
+      type: table_write
+      table: meetings
+      data:
+        owner_id: "{{ lemma.current_user.id }}"   # Decision 1: Lemma native identity
+        title: "{{ inputs.title or 'Untitled Meeting' }}"
+        summary: "{{ steps.extract_meeting_data.ai_data.summary }}"
+        participants: "{{ steps.extract_meeting_data.ai_data.participants }}"
+        key_points: "{{ steps.extract_meeting_data.ai_data.key_points }}"
+        duration_seconds: "{{ steps.extract_meeting_data.ai_data.duration }}"
+        status: "Processing"
+        audio_file_uri: "{{ steps.save_audio.audio_file_uri }}"   # Decision 3: pod:// URI
+        action_item_ids: []
+      output: meeting
+
+    # ── Step 6: Process tasks in parallel ─────────────────────────────────────
+    - id: process_tasks
+      type: parallel_for
+      over: "{{ steps.clamped_tasks }}"
+      as: raw_task
+      index: idx
+      steps:
+        # Cut audio proof clip for this task
+        - id: cut_audio_proof
+          type: function_call
+          function: generate_audio_proof
+          args:
+            audio_file_uri: "{{ steps.save_audio.audio_file_uri }}"
+            start_seconds: "{{ raw_task.startTime }}"
+            end_seconds: "{{ raw_task.endTime }}"
+            task_id: "task_{{ steps.create_meeting.meeting.id[:8] }}_{{ idx | pad(3) }}"
+          output: audio_clip_uri
+          # Returns pod://files/audio_proofs/<task_id>.mp3 or fragment URI
+
+        # Insert task record to Table
+        - id: create_task
+          type: table_write
+          table: tasks
+          data:
+            owner_id: "{{ lemma.current_user.id }}"
+            meeting_id: "{{ steps.create_meeting.meeting.id }}"
+            title: "{{ raw_task.title }}"
+            description: "{{ raw_task.description }}"
+            assignee: "{{ raw_task.assignee }}"
+            priority: "{{ raw_task.priority }}"
+            status: "To Do"
+            source_quote: "{{ raw_task.sourceQuote }}"
+            start_time_seconds: "{{ raw_task.startTime }}"
+            end_time_seconds: "{{ raw_task.endTime }}"
+            audio_clip_uri: "{{ steps.cut_audio_proof.audio_clip_uri }}"   # Decision 3
+            embedding: null           # Decision 4: filled by background workflow
+            embedding_status: "pending"
+          output: saved_task
+
+    # ── Step 7: Update meeting with task ID list ──────────────────────────────
+    - id: update_meeting_task_ids
+      type: table_update
+      table: meetings
+      id: "{{ steps.create_meeting.meeting.id }}"
+      data:
+        action_item_ids: "{{ steps.process_tasks | map('saved_task.id') }}"
+        status: "Embedding"   # Signal that async embed job is about to run
+
+    # ── Step 8: Fire-and-forget async embedding (Decision 4) ─────────────────
+    # Does NOT await — response is returned to client BEFORE this completes.
+    - id: trigger_embedding
+      type: workflow_trigger
+      workflow: embed_tasks_background
+      mode: async
+      args:
+        task_ids: "{{ steps.process_tasks | map('saved_task.id') }}"
+        meeting_id: "{{ steps.create_meeting.meeting.id }}"
+
+  # Response returned BEFORE embedding completes (Decision 4)
+  output:
+    meeting: "{{ steps.create_meeting.meeting }}"
+    tasks: "{{ steps.process_tasks | map('saved_task') | strip_field('embedding') }}"
+    embedding_status: "pending"
+    message: "Meeting saved. Semantic search will be available shortly."

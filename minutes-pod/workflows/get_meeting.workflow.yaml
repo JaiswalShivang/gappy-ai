@@ -1,0 +1,36 @@
+# workflows/get_meeting.workflow.yaml
+# =====================================
+# Replaces: GET /api/meetings/:id  (api/routes/meetings.py get_meeting)
+#
+# Fetches a single meeting by ID, scoped to the authenticated user.
+
+workflow:
+  name: get_meeting
+  description: >
+    Return a single meeting record for the authenticated user.
+    Returns 404 if the meeting does not exist or belongs to another user.
+
+  trigger:
+    type: api
+    method: GET
+    path: /meetings/:meeting_id
+    auth: lemma_rbac
+
+  input:
+    meeting_id:
+      type: uuid
+      required: true
+
+  steps:
+    - id: fetch
+      type: table_read
+      table: meetings
+      query:
+        id: "{{ inputs.meeting_id }}"
+        owner_id: "{{ lemma.current_user.id }}"   # Decision 1: RBAC scoping
+      output: meeting
+      on_not_found:
+        error: "Meeting not found"
+        http_status: 404
+
+  output: "{{ steps.fetch.meeting }}"

@@ -1,0 +1,94 @@
+# workflows/draft_email.workflow.yaml
+# =====================================
+# Replaces: GET /api/meetings/:id/draft-email  (api/routes/meetings.py)
+#
+# Fetches meeting + tasks, builds payload, calls email_drafter agent,
+# returns the markdown email body.
+# Updated: Decision 3 — passes audio_clip_uri (Pod URI) instead of server path.
+
+workflow:
+  name: draft_email
+  description: >
+    Fetch meeting and task records for a given meeting ID, build the payload
+    for the email_drafter agent, generate a professional markdown follow-up
+    email, and return it. Includes a human approval gate before LLM call.
+
+  trigger:
+    type: api
+    method: GET
+    path: /meetings/:meeting_id/draft-email
+    auth: lemma_rbac
+
+  input:
+    meeting_id:
+      type: uuid
+      required: true
+
+  steps:
+    # ── Fetch the meeting ─────────────────────────────────────────────────────
+    - id: get_meeting
+      type: table_read
+      table: meetings
+      query:
+        id: "{{ inputs.meeting_id }}"
+        owner_id: "{{ lemma.current_user.id }}"   # Decision 1: RBAC row filter
+      output: meeting
+      on_not_found:
+        error: "Meeting not found"
+        http_status: 404
+
+    # ── Fetch all tasks for this meeting ──────────────────────────────────────
+    - id: get_tasks
+      type: table_read
+      table: tasks
+      query:
+        meeting_id: "{{ inputs.meeting_id }}"
+      project:
+        embedding: false   # NEVER expose embedding vectors
+      output: tasks
+
+    # ── HUMAN APPROVAL GATE 2 ──────────────────────────────────────────────────
+    # Justification: Email generation implies intent to communicate externally.
+    # Confirms the user didn't trigger accidentally.
+    # Auto-approves after 2 minutes.
+    - id: confirm_email_draft
+      type: human_approval
+      label: "Confirm follow-up email generation"
+      description: >
+        Draft a follow-up email for "{{ steps.get_meeting.meeting.title }}"
+        ({{ steps.get_tasks.tasks | length }} action items,
+        {{ steps.get_meeting.meeting.participants | length }} participants)?
+      payload:
+        meeting_title: "{{ steps.get_meeting.meeting.title }}"
+        participant_count: "{{ steps.get_meeting.meeting.participants | length }}"
+        task_count: "{{ steps.get_tasks.tasks | length }}"
+      timeout_action: auto_approve
+      timeout_minutes: 2
+
+    # ── Call email_drafter agent ──────────────────────────────────────────────
+    - id: draft_email
+      type: agent_call
+      agent: email_drafter
+      input:
+        title: "{{ steps.get_meeting.meeting.title }}"
+        summary: "{{ steps.get_meeting.meeting.summary }}"
+        participants: "{{ steps.get_meeting.meeting.participants }}"
+        tasks: >
+          {{ steps.get_tasks.tasks
+             | map(pick=['title', 'assignee', 'priority', 'audio_clip_uri']) }}
+        # audio_clip_uri is a Pod URI (Decision 3) — passed as-is to agent.
+        # The agent embeds it in markdown links: [🎧 Listen](pod://...)
+      output: email_result
+      on_error:
+        type: function_call
+        function: mock_email_template
+        args:
+          meeting_data:
+            title: "{{ steps.get_meeting.meeting.title }}"
+            summary: "{{ steps.get_meeting.meeting.summary }}"
+            participants: "{{ steps.get_meeting.meeting.participants }}"
+            tasks: "{{ steps.get_tasks.tasks }}"
+
+  output:
+    status: "success"
+    email_markdown: "{{ steps.draft_email.email_result }}"

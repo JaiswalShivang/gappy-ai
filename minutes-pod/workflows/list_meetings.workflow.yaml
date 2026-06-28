@@ -1,0 +1,32 @@
+# workflows/list_meetings.workflow.yaml
+# ======================================
+# Replaces: GET /api/meetings  (api/routes/meetings.py list_meetings)
+#
+# Returns meetings for the authenticated user, newest first.
+# RBAC row_filter on the meetings table handles user scoping automatically.
+
+workflow:
+  name: list_meetings
+  description: >
+    Return all meetings belonging to the authenticated user, sorted newest first.
+    Limited to 50 records. RBAC row_filter ensures users only see their own data.
+
+  trigger:
+    type: api
+    method: GET
+    path: /meetings
+    auth: lemma_rbac
+
+  steps:
+    - id: query_meetings
+      type: table_read
+      table: meetings
+      query:
+        owner_id: "{{ lemma.current_user.id }}"   # Decision 1: Lemma identity
+      sort:
+        created_at: desc
+      limit: 50
+      output: meetings
+
+  output:
+    meetings: "{{ steps.query_meetings.meetings }}"

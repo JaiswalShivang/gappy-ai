@@ -1,0 +1,135 @@
+table:
+  name: tasks
+  description: >
+    Action items extracted from meetings. Each task belongs to one meeting
+    and one Lemma identity user.
+    - embedding field starts null and is populated asynchronously by
+      embed_tasks_background workflow (Decision 4).
+    - audio_clip_uri is a Pod-native file URI (Decision 3).
+
+  fields:
+    - name: id
+      type: uuid
+      primary_key: true
+      auto_generate: true
+
+    - name: owner_id
+      type: lemma_user_id
+      required: true
+      index: true
+
+    - name: meeting_id
+      type: uuid
+      foreign_key: meetings.id
+      required: true
+      index: true
+      description: The meeting this task was extracted from.
+
+    - name: title
+      type: string
+      required: true
+      description: Short imperative task title, max ~8 words. AI-generated.
+
+    - name: description
+      type: text
+      default: ""
+      description: Detailed actionable description. AI-generated.
+
+    - name: assignee
+      type: string
+      required: true
+      default: "Unassigned"
+      description: Full name of the person responsible for this task.
+
+    - name: priority
+      type: enum
+      values: ["High", "Medium", "Low"]
+      default: "Medium"
+      description: >
+        High if urgent/deadline mentioned, Low if vague, else Medium.
+        Set by the meeting_analyst agent.
+
+    - name: status
+      type: enum
+      values: ["To Do", "In Progress", "Done", "Blocked"]
+      default: "To Do"
+      description: Current lifecycle status. User-mutable via update_task workflow.
+
+    - name: source_quote
+      type: text
+      required: false
+      description: >
+        Verbatim line(s) from the transcript including the [HH:MM:SS] bracket
+        where this task was identified. Used for audio proof and auditability.
+
+    - name: start_time_seconds
+      type: integer
+      minimum: -1
+      default: 0
+      description: >
+        Start offset in source audio where this task was spoken.
+        -1 means the timestamp was not found in the transcript.
+
+    - name: end_time_seconds
+      type: integer
+      minimum: -1
+      default: 0
+      description: End offset in source audio. -1 if not found.
+
+    - name: audio_clip_uri
+      type: file_uri
+      required: false
+      description: >
+        Pod-native URI for the FFmpeg-cut audio proof clip.
+        Null if no audio was uploaded (transcript-only meeting).
+
+    - name: blocked_by
+      type: uuid
+      foreign_key: tasks.id
+      required: false
+      description: If set, this task is blocked by the referenced task.
+
+    - name: embedding
+      type: vector
+      dimensions: 384
+      similarity: cosine
+      index: true
+      sensitive: true
+      nullable: true
+      description: >
+        384-dim float vector from all-MiniLM-L6-v2 (sentence-transformers).
+        Null until embed_tasks_background completes.
+        Used exclusively by the vector_search function.
+
+    - name: embedding_status
+      type: enum
+      values: ["pending", "done", "failed"]
+      default: "pending"
+      description: >
+        Tracks whether the background embedding job has processed this task.
+        Enables partial retry (re-embed only failed tasks).
+
+    - name: created_at
+      type: datetime
+      auto_now_create: true
+
+  constraints:
+    - field: start_time_seconds
+      rule: "value >= -1"
+    - field: end_time_seconds
+      rule: "value >= -1"
+
+  access_policy:
+    row_filter: "owner_id == lemma.current_user.id"
+    roles:
+      - role: member
+        allow: [read, create, update]
+      - role: admin
+        allow: [read, create, update, delete]
+
+  updatable_fields:
+    - status
+    - priority
+    - assignee
+    - description
+    - title

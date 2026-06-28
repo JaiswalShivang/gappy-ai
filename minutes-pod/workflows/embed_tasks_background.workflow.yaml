@@ -1,0 +1,61 @@
+# workflows/embed_tasks_background.workflow.yaml
+# ================================================
+# NEW WORKFLOW — Decision 4: async background embedding job
+#
+# Triggered non-blocking by upload_audio_meeting and process_transcript workflows.
+# Runs AFTER the API response has already been returned to the client.
+#
+# Pipeline:
+#   receive task_ids + meeting_id
+#   → call async_embed_and_save function
+#   → tasks.embedding filled, tasks.embedding_status = "done"
+#   → meeting.status updated to "Ready" (or "Error" on failure)
+
+workflow:
+  name: embed_tasks_background
+  description: >
+    Background job: generate 384-dim sentence embeddings for all tasks in a meeting,
+    write them to the tasks table, then update meeting status to "Ready".
+    Runs asynchronously — never blocks the upload or process API response.
+    Triggered by upload_audio_meeting and process_transcript workflows.
+
+  trigger:
+    type: workflow_event
+    # Not an HTTP endpoint — triggered programmatically by other workflows.
+    source:
+      - upload_audio_meeting
+      - process_transcript
+    mode: async
+    description: >
+      Fired via workflow_trigger step with mode=async. The calling workflow
+      does not wait for this to complete before returning its response.
+
+  input:
+    task_ids:
+      type: array
+      items: uuid
+      description: IDs of all tasks for this meeting that need embeddings.
+    meeting_id:
+      type: uuid
+      description: Parent meeting ID — status will be updated when complete.
+
+  steps:
+    # ── Embed all tasks and update their embedding fields ─────────────────────
+    - id: embed_and_save
+      type: function_call
+      function: async_embed_and_save
+      args:
+        task_ids: "{{ inputs.task_ids }}"
+        meeting_id: "{{ inputs.meeting_id }}"
+      output: result
+      # result: { status: "Ready"|"Error", embedded: int, failed: int }
+      on_error:
+        # If the function itself raises (shouldn't happen — it catches internally)
+        type: table_update
+        table: meetings
+        id: "{{ inputs.meeting_id }}"
+        data:
+          status: "Error"
+
+  output:
+    result: "{{ steps.embed_and_save.result }}"

@@ -1,0 +1,87 @@
+table:
+  name: meetings
+  description: >
+    Top-level meeting records. Created after AI extraction completes.
+    Belongs to one Lemma identity user. References a list of task IDs.
+    Audio path is a Pod-native file URI (pod://files/audio/<filename>).
+
+  fields:
+    - name: id
+      type: uuid
+      primary_key: true
+      auto_generate: true
+
+    - name: owner_id
+      type: lemma_user_id
+      required: true
+      index: true
+      description: >
+        The Lemma identity ID of the user who owns this meeting.
+        Automatically scoped to the authenticated session by RBAC row_filter.
+
+    - name: title
+      type: string
+      required: true
+      default: "Untitled Meeting"
+
+    - name: summary
+      type: text
+      required: true
+      description: 3–5 sentence AI-generated meeting summary.
+
+    - name: participants
+      type: array<string>
+      default: []
+      description: List of participant full names extracted by the meeting_analyst agent.
+
+    - name: key_points
+      type: array<string>
+      default: []
+      description: Bullet-point key decisions or insights extracted by the meeting_analyst agent.
+
+    - name: duration_seconds
+      type: integer
+      minimum: 0
+      default: 0
+      description: Total audio duration in seconds from Groq Whisper verbose_json metadata.
+
+    - name: status
+      type: enum
+      values:
+        - "Processing"   
+        - "Embedding" 
+        - "Ready"      
+        - "Error"      
+      default: "Processing"
+      description: >
+        Lifecycle status of the meeting record.
+        Frontend should poll or subscribe to this field before enabling semantic search.
+
+    - name: audio_file_uri
+      type: file_uri
+      required: false
+      description: >
+        Pod-native URI for the original uploaded audio file.
+        Null for transcript-only meetings (process_transcript workflow).
+
+    - name: action_item_ids
+      type: array<uuid>
+      default: []
+      description: Ordered list of task IDs belonging to this meeting.
+
+    - name: created_at
+      type: datetime
+      auto_now_create: true
+
+  constraints:
+    - field: title
+      rule: "length > 0"
+      error: "Meeting title must not be empty"
+
+  access_policy:
+    row_filter: "owner_id == lemma.current_user.id"
+    roles:
+      - role: member
+        allow: [read, create, update]
+      - role: admin
+        allow: [read, create, update, delete]

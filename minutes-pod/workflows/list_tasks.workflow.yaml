@@ -1,0 +1,43 @@
+# workflows/list_tasks.workflow.yaml
+# =====================================
+# Replaces: GET /api/tasks  (api/routes/tasks.py list_tasks)
+#
+# Returns tasks for the authenticated user.
+# Optional query parameter: meetingId — filters to tasks from one meeting.
+# embedding field is always stripped from responses.
+
+workflow:
+  name: list_tasks
+  description: >
+    Return tasks belonging to the authenticated user.
+    Optionally filter by meetingId to get tasks from a specific meeting.
+    embedding vectors are never returned to the client.
+
+  trigger:
+    type: api
+    method: GET
+    path: /tasks
+    auth: lemma_rbac
+
+  input:
+    meetingId:
+      type: uuid
+      required: false
+      description: Filter to tasks from this meeting only.
+
+  steps:
+    - id: query
+      type: table_read
+      table: tasks
+      query:
+        owner_id: "{{ lemma.current_user.id }}"
+        # Conditionally include meetingId filter only when provided
+        meeting_id: "{{ inputs.meetingId if inputs.meetingId else undefined }}"
+      project:
+        embedding: false          # NEVER return embedding vectors to the client
+        embedding_status: true    # Include status so frontend can show "indexing" state
+      sort:
+        created_at: asc
+      output: tasks
+
+  output: "{{ steps.query.tasks }}"

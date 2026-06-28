@@ -1,0 +1,71 @@
+# workflows/semantic_search.workflow.yaml
+# =========================================
+# Replaces: GET /api/search?q=...&limit=n  (api/routes/search.py)
+#
+# Semantic search pipeline:
+#   1. Embed the user's query string via generate_embedding
+#   2. Run MongoDB Atlas $vectorSearch via vector_search function
+#   3. Return ranked task results
+#
+# Decision 2: Atlas remains external — vector_search is an isolated Function.
+# Note: Search only returns results for tasks with embedding_status="done".
+#       Frontend should check meeting.status == "Ready" before enabling search.
+
+workflow:
+  name: semantic_search
+  description: >
+    Embed a user's natural language query and run a MongoDB Atlas $vectorSearch
+    over the tasks collection, pre-filtered to the current user's data.
+    Returns up to `limit` tasks ranked by cosine similarity.
+
+  trigger:
+    type: api
+    method: GET
+    path: /search
+    auth: lemma_rbac
+
+  input:
+    q:
+      type: string
+      required: true
+      min_length: 1
+      description: Natural language search query.
+    limit:
+      type: integer
+      required: false
+      default: 5
+      minimum: 1
+      maximum: 10
+      description: Max number of results to return.
+
+  steps:
+    # ── Step 1: Embed the query string ────────────────────────────────────────
+    - id: embed_query
+      type: function_call
+      function: generate_embedding
+      args:
+        text: "{{ inputs.q }}"
+      output: query_vector
+      on_error:
+        error: "Embedding service unavailable. Please try again."
+        http_status: 503
+
+    # ── Step 2: Run Atlas $vectorSearch ──────────────────────────────────────
+    - id: search
+      type: function_call
+      function: vector_search
+      args:
+        query_vector: "{{ steps.embed_query.query_vector }}"
+        user_id: "{{ lemma.current_user.id }}"   # Decision 1: Lemma identity
+        limit: "{{ inputs.limit }}"
+      output: results
+      on_error:
+        error: >
+          Vector search unavailable. If this persists, ensure the
+          'task_embedding_index' is Active in MongoDB Atlas.
+        http_status: 503
+
+  output:
+    query: "{{ inputs.q }}"
+    results: "{{ steps.search.results }}"
+    count: "{{ steps.search.results | length }}"

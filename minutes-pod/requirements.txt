@@ -1,0 +1,61 @@
+# requirements.txt — minutes-pod Python dependencies
+# =====================================================
+# Install with:  pip install -r requirements.txt
+#
+# All functions in this Pod are written in Python 3.11.
+# Grouped by the functions that use each dependency.
+
+# ── Lemma SDK ─────────────────────────────────────────────────────────────────
+# The Lemma runtime SDK — provides @fn, inject, Secret decorators,
+# pod.files, pod.db injection interfaces, and workflow primitives.
+lemma>=1.0.0
+
+# ── Groq (transcription + LLM) ────────────────────────────────────────────────
+# Used by: transcribe_audio.fn.py (Whisper transcription)
+# The meeting_analyst and email_drafter agents call Groq via Lemma's
+# model adapter — NOT via this SDK directly. This is for the Whisper HTTP API.
+groq>=0.9.0
+
+# ── OpenAI-compatible client (optional fallback) ──────────────────────────────
+# Used by: transcribe_audio.fn.py (Groq is OpenAI-API compatible)
+# Only needed if the Groq SDK is unavailable or for direct OpenAI calls.
+# openai>=1.35.3
+
+# ── Sentence Transformers (local embeddings) ──────────────────────────────────
+# Used by: generate_embedding.fn.py
+# Downloads all-MiniLM-L6-v2 from HuggingFace on first run (~90 MB).
+# Produces 384-dim cosine similarity vectors.
+sentence-transformers==3.0.1
+
+# ── PyTorch (sentence-transformers dependency) ────────────────────────────────
+# sentence-transformers requires torch. CPU-only build keeps size manageable.
+# On GPU hosts, replace with the CUDA build.
+torch>=2.0.0
+
+# ── MongoDB (external vector store — Decision 2) ──────────────────────────────
+# Used by: vector_search.fn.py
+# async_embed_and_save in generate_embedding.fn.py uses pod.db injection
+# (Lemma-managed) — but vector_search calls Atlas externally via Motor.
+motor>=3.4.0
+pymongo>=4.7.0
+
+# ── FFmpeg Python bindings (audio clip cutting) ───────────────────────────────
+# Used by: generate_audio_proof.fn.py
+# Requires the FFmpeg BINARY to be installed and in PATH separately.
+# Install FFmpeg: https://ffmpeg.org/download.html
+# Lemma Dockerfile or cloud runner must have ffmpeg in the base image.
+ffmpeg-python>=0.2.0
+
+# ── Dataclasses / typing (stdlib) ────────────────────────────────────────────
+# dataclasses — built into Python 3.7+, no pip install needed
+# typing      — built into Python 3.5+, no pip install needed
+
+# ── REMOVED dependencies (Decision 1 — Lemma RBAC replaces custom auth) ──────
+# bcrypt        — replaced by Lemma's built-in identity system
+# PyJWT         — replaced by Lemma's built-in identity system
+# python-jose   — replaced by Lemma's built-in identity system
+# passlib       — replaced by Lemma's built-in identity system
+# fastapi       — replaced by Lemma workflow triggers
+# uvicorn       — replaced by Lemma daemon
+# pydantic      — Lemma handles schema validation natively
+# pydantic-settings — Lemma handles env config natively

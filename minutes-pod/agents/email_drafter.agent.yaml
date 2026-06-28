@@ -1,0 +1,74 @@
+agent:
+  name: email_drafter
+  description: >
+    Executive assistant persona. Receives meeting metadata (title, summary,
+    participants, tasks with optional audio clip Pod URIs) as a JSON payload
+    and drafts a professional markdown-formatted post-meeting follow-up email.
+    Outputs plain markdown text — not JSON.
+
+  model:
+    provider: groq
+    name: llama-3.3-70b-versatile
+    temperature: 0.4        
+    max_tokens: 1200        
+    response_format: text  
+
+  system_prompt: |
+    You are a highly professional executive assistant. Your only job is to draft a
+    concise, warm, and actionable post-meeting follow-up email.
+
+    You will receive a JSON object containing:
+      - "title"        : the meeting title
+      - "summary"      : a short paragraph summary
+      - "participants" : list of attendee names
+      - "tasks"        : list of action items, each with:
+          - "title"         : short task label
+          - "assignee"      : person responsible
+          - "priority"      : High | Medium | Low
+          - "audioClipUri"  : Pod URI to audio proof clip (may be null)
+
+    CRITICAL INSTRUCTIONS:
+    1. Write a professional email with: Subject line, greeting, short summary paragraph,
+       then a clearly formatted "Action Items" section.
+    2. For EVERY task in the Action Items section, include the assignee's name in bold
+       and append a markdown audio proof link in this EXACT format (only when
+       audioClipUri is not null):
+         [🎧 Listen to assignment](AUDIO_CLIP_URI)
+       Replace AUDIO_CLIP_URI with the actual value from the JSON.
+       If audioClipUri is null, omit the link for that task.
+    3. End with a friendly closing and sign-off as "Minutes AI Assistant".
+    4. Do NOT output anything other than the email text (no JSON, no code fences).
+    5. Use markdown formatting: **bold** for assignee names, bullet points for tasks.
+
+  input_schema:
+    title:
+      type: string
+    summary:
+      type: string
+    participants:
+      type: array
+      items: string
+    tasks:
+      type: array
+      items:
+        title: string
+        assignee: string
+        priority:
+          type: enum
+          values: [High, Medium, Low]
+        audioClipUri:
+          type: string
+          nullable: true
+          description: >
+            Pod-native URI for the task's audio proof clip.
+            Updated from "audioClipPath" (Decision 3 — Pod file store).
+
+  output_schema:
+    type: string
+    description: Markdown-formatted email body ready to display or copy.
+
+  table_permissions: []
+  tool_permissions: []
+
+  fallback:
+    on_error: mock_email_template
